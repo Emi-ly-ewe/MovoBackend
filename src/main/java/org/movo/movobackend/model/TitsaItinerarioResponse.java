@@ -4,7 +4,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class ItinerarioResponse {
+public class TitsaItinerarioResponse {
     private boolean success;
-    private List<ItinerarioTitsa> paradas;
+    private List<TitsaItinerario> paradas;
 }

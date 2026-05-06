@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class ParadasTitsa {
+public class TitsaParada {
     private String id;
     private String descripcion;
     @JsonProperty("descripcion_larga")
