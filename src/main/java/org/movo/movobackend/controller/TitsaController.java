@@ -1,6 +1,7 @@
 package org.movo.movobackend.controller;
 
 import org.movo.movobackend.model.TitsaItinerarioResponse;
+import org.movo.movobackend.model.TitsaNotificacion;
 import org.movo.movobackend.model.TitsaParadaResponse;
 import org.movo.movobackend.service.TitsaService;
 import org.springframework.web.bind.annotation.*;
@@ -16,4 +17,6 @@ public class TitsaController {
     public TitsaParadaResponse getParada(@PathVariable int id) {return titsaService.getParada(id);}
     @GetMapping("/itinerario")
     public TitsaItinerarioResponse getItinerario(@RequestParam int linea, @RequestParam int trayecto) {return titsaService.getItinerario(linea, trayecto);}
+    @GetMapping("/notificacion/{id}")
+    public TitsaNotificacion getNotificacion(@PathVariable int id) {return titsaService.getNotificacion(id);}
 }
