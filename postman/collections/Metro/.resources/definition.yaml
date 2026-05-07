@@ -1,0 +1,7 @@
+$kind: collection
+name: Metro
+description: Endpoints for the Metro Tenerife API exposed by MovoBackend (base path /metro).
+variables:
+  baseUrl: ""
+auth:
+  type: noauth

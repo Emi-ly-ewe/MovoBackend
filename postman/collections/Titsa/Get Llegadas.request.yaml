@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Llegadas
+method: GET
+url: '{{baseUrl}}/titsa/llegadas/:id'
+order: 4000
+description: 'Returns upcoming arrivals (llegadas) for a given TITSA stop id.'
+pathVariables:
+  - key: id
+    value: '1908'
+    description: TITSA stop id

@@ -1,0 +1,5 @@
+$kind: collection
+name: Titsa
+description: 'Endpoints for the TITSA (bus) API exposed by MovoBackend (base path /titsa).'
+auth:
+  type: noauth

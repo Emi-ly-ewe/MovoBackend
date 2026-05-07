@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Llegadas
+method: GET
+url: '{{baseUrl}}/metro/llegadas?stopSAE=104'
+order: 2000
+description: 'Returns upcoming arrivals (llegadas) for a given Metro stop SAE code.'
+queryParams:
+  - key: stopSAE
+    value: '104'
+    description: SAE code of the Metro stop

@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Notificacion
+method: GET
+url: '{{baseUrl}}/titsa/notificacion/:id'
+order: 3000
+description: 'Returns a TITSA notification by id.'
+pathVariables:
+  - key: id
+    value: '1'
+    description: Notification id

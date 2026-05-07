@@ -1,0 +1,13 @@
+$kind: http-request
+name: Get Itinerario
+method: GET
+url: '{{baseUrl}}/metro/itinerario?route=1&direction=1'
+order: 1000
+description: 'Returns the itinerary (stops) for a given Metro line and direction.'
+queryParams:
+  - key: route
+    value: '1'
+    description: Metro line number
+  - key: direction
+    value: '1'
+    description: Direction of travel

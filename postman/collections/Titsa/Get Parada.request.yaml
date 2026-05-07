@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Parada
+method: GET
+url: '{{baseUrl}}/titsa/parada/:id'
+order: 1000
+description: 'Returns information about a TITSA bus stop by its id.'
+pathVariables:
+  - key: id
+    value: '1908'
+    description: TITSA stop id

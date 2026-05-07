@@ -1,0 +1,13 @@
+$kind: http-request
+name: Get Itinerario
+method: GET
+url: '{{baseUrl}}/titsa/itinerario?linea=014&trayecto=1'
+order: 2000
+description: 'Returns the itinerary for a given TITSA line and trayecto.'
+queryParams:
+  - key: linea
+    value: '014'
+    description: TITSA line number
+  - key: trayecto
+    value: '1'
+    description: Trayecto/route variant
