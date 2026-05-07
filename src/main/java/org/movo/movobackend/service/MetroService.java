@@ -2,6 +2,8 @@ package org.movo.movobackend.service;
 
 import org.movo.movobackend.model.*;
 import org.movo.movobackend.model.dto.MetroStopApiDTO;
+import org.movo.movobackend.model.response.MetroItinerarioResponse;
+import org.movo.movobackend.model.response.MetroLlegadaResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.util.*;

@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: movo-postgres
+    environment:
+      POSTGRES_DB: movodb
+      POSTGRES_USER: movo
+      POSTGRES_PASSWORD: movopassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Cambiamos esto para montar la CARPETA entera
+      - ./db:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_data:

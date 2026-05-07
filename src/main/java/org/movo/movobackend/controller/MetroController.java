@@ -1,7 +1,7 @@
 package org.movo.movobackend.controller;
 
-import org.movo.movobackend.model.MetroItinerarioResponse;
-import org.movo.movobackend.model.MetroLlegadaResponse;
+import org.movo.movobackend.model.response.MetroItinerarioResponse;
+import org.movo.movobackend.model.response.MetroLlegadaResponse;
 import org.movo.movobackend.service.MetroService;
 import org.springframework.web.bind.annotation.*;
 
