@@ -11,4 +11,7 @@ public class MetroParada {
     private int idParada;      // stopSAE
     private String nombre;     // stopDescription
     private int orden;        // orderStop
+    private int direction;
+    private Double lat;
+    private Double lon;
 }

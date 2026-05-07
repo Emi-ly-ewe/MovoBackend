@@ -9,6 +9,6 @@ public class TitsaParada {
     private String descripcion;
     @JsonProperty("descripcion_larga")
     private String descripcionLarga;
-    private String lat;
-    private String lng;
+    private Double lat;
+    private Double lng;
 }

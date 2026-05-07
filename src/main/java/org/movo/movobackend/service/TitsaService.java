@@ -4,16 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.movo.movobackend.model.TitsaItinerarioResponse;
-import org.movo.movobackend.model.TitsaParada;
-import org.movo.movobackend.model.TitsaParadaResponse;
-import org.movo.movobackend.model.TitsaNotificacion; // Necesitarás crear este modelo
+import org.movo.movobackend.model.*;
+import org.movo.movobackend.model.dto.TitsaInfoParadaApiDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Service
 public class TitsaService {
@@ -46,7 +44,6 @@ public class TitsaService {
             }
 
             return titsaResponse;
-
         } catch (Exception e) {
             throw new RuntimeException("Error fetching or parsing TITSA data", e);
         }
@@ -82,7 +79,6 @@ public class TitsaService {
             }
 
             return new TitsaNotificacion(String.valueOf(id), titulo, contenido);
-
         } catch (Exception e) {
             throw new RuntimeException("Error extrayendo la notificación " + id, e);
         }
@@ -119,9 +115,74 @@ public class TitsaService {
         }
     }
 
+    public TitsaLlegadaResponse getLlegadas(int idParada) {
+        try {
+            String url = "https://www.titsa.com/ajax/xGetInfoParada.php?id_parada=" + idParada;
+
+            ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+            byte[] rawBytes = response.getBody();
+
+            if (rawBytes == null) {
+                throw new RuntimeException("TITSA API returned empty body");
+            }
+
+            String rawJson = new String(rawBytes, StandardCharsets.UTF_8);
+
+            TitsaInfoParadaApiDTO apiResponse =
+                    objectMapper.readValue(rawJson, TitsaInfoParadaApiDTO.class);
+
+            if (apiResponse == null || !apiResponse.isSuccess()) {
+                return new TitsaLlegadaResponse(false, null, List.of());
+            }
+
+            TitsaParada parada = apiResponse.getParada();
+
+            if (parada != null) {
+                parada.setDescripcion(reverseMojibake(parada.getDescripcion()));
+                parada.setDescripcionLarga(
+                        reverseMojibake(parada.getDescripcionLarga())
+                );
+            }
+
+            List<TitsaLlegada> llegadas =
+                    apiResponse.getLineas()
+                            .stream()
+                            .map(linea -> new TitsaLlegada(
+                                    linea.getId(),
+                                    reverseMojibake(linea.getDestino()),
+                                    parseMinutos(linea.getTiempo())
+                            ))
+                            .toList();
+
+            return new TitsaLlegadaResponse(
+                    true,
+                    parada,
+                    llegadas
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching TITSA arrivals", e);
+        }
+    }
+
     private String reverseMojibake(String brokenText) {
         if (brokenText == null || brokenText.isEmpty()) {return brokenText;}
         byte[] bytes = brokenText.getBytes(StandardCharsets.ISO_8859_1);
         return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private int parseMinutos(String tiempo) {
+        if (tiempo == null) {
+            return -1;
+        }
+
+        tiempo = tiempo.trim();
+
+        try {
+            return Integer.parseInt(tiempo);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 }
