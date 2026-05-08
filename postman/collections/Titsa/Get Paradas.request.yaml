@@ -1,0 +1,13 @@
+$kind: http-request
+name: Get Paradas
+method: GET
+url: '{{baseUrl}}/titsa/paradas?linea=014&sentido=1'
+order: 6000
+description: 'Returns the list of TITSA bus stops for a given line and direction (sentido).'
+queryParams:
+  - key: linea
+    value: '014'
+    description: TITSA line number
+  - key: sentido
+    value: '1'
+    description: Direction (sentido) of the line

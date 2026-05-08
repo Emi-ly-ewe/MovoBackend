@@ -1,0 +1,16 @@
+$kind: http-request
+name: Get Cercanas
+method: GET
+url: '{{baseUrl}}/titsa/cercanas?lat=28.4682&lng=-16.2546&radio=500'
+order: 7000
+description: 'Returns TITSA bus stops near a given coordinate within a radius (in meters). Defaults to 500m if radio is not specified.'
+queryParams:
+  - key: lat
+    value: '28.4682'
+    description: Latitude
+  - key: lng
+    value: '-16.2546'
+    description: Longitude
+  - key: radio
+    value: '500'
+    description: Search radius in meters (default 500)
