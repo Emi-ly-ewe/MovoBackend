@@ -122,13 +122,17 @@ public class TitsaService {
                 parada.setDescripcionLarga(reverseMojibake(parada.getDescripcionLarga()));
             }
 
-            List<TitsaLlegada> llegadas = apiResponse.getLineas().stream()
-                    .map(linea -> new TitsaLlegada(
-                            linea.getId(),
-                            reverseMojibake(linea.getDestino()),
-                            parseMinutos(linea.getTiempo())
-                    ))
-                    .toList();
+            List<TitsaLlegada> llegadas = List.of();
+
+            if (apiResponse.getLineas() != null) {
+                llegadas = apiResponse.getLineas().stream()
+                        .map(linea -> new TitsaLlegada(
+                                linea.getId(),
+                                reverseMojibake(linea.getDestino()),
+                                parseMinutos(linea.getTiempo())
+                        ))
+                        .toList();
+            }
 
             return new TitsaLlegadaResponse(true, parada, llegadas);
         } catch (Exception e) {
