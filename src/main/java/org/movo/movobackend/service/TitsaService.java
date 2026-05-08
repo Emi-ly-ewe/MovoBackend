@@ -9,7 +9,6 @@ import org.movo.movobackend.model.dto.TitsaInfoParadaApiDTO;
 import org.movo.movobackend.model.entity.LineaEntity;
 import org.movo.movobackend.model.entity.ParadaEntity;
 import org.movo.movobackend.model.response.TitsaItinerarioResponse;
-import org.movo.movobackend.model.response.TitsaLlegadaResponse;
 import org.movo.movobackend.model.response.TitsaParadaResponse;
 import org.movo.movobackend.repository.LineaRepository;
 import org.movo.movobackend.repository.ParadaRepository;
@@ -50,8 +49,8 @@ public class TitsaService {
 
         return paradasBD.stream().map(entidad -> {
             TitsaParada p = new TitsaParada();
-            p.setId(entidad.getParadaId());
-            p.setDescripcion(entidad.getNombre());
+            p.setIdParada(entidad.getParadaId());
+            p.setDescripcionParada(entidad.getNombre());
             p.setDescripcionLarga(entidad.getNombre());
             p.setLat(entidad.getLat());
             p.setLng(entidad.getLng());
@@ -63,17 +62,35 @@ public class TitsaService {
         List<ParadaEntity> todasLasParadas = paradaRepository.findAll();
 
         return todasLasParadas.stream()
-                .filter(p -> calcularDistancia(latUsuario, lngUsuario, p.getLat(), p.getLng()) <= radioMetros)
-                .map(entidad -> {
-                    TitsaParada p = new TitsaParada();
-                    p.setId(entidad.getParadaId());
-                    p.setDescripcion(entidad.getNombre());
-                    p.setDescripcionLarga(entidad.getNombre() + " (Línea " + entidad.getLinea() + ")");
-                    p.setLat(entidad.getLat());
-                    p.setLng(entidad.getLng());
-                    return p;
+                .filter(p -> calcularDistancia(latUsuario, lngUsuario, p.getLat(), p.getLng()) <= radioMetros).map(ParadaEntity::getParadaId)
+                .distinct().flatMap(idParada -> {
+                    TitsaParadaResponse response = getLlegadas(Integer.parseInt(idParada));
+
+                    if (response.isSuccess() && response.getLlegadas() != null && !response.getLlegadas().isEmpty()) {
+
+                        return response.getLlegadas().stream().map(llegada -> {
+                            TitsaParada p = new TitsaParada();
+                            p.setIdParada(response.getParada().getIdParada());
+                            p.setDescripcionParada(response.getParada().getDescripcionParada());
+                            p.setDescripcionLarga(response.getParada().getDescripcionLarga());
+                            p.setLat(response.getParada().getLat());
+                            p.setLng(response.getParada().getLng());
+
+                            p.setLinea(llegada.getLinea());
+                            p.setDescripcionLinea(llegada.getDescripcionLinea()); // Lo nuevo que vimos en el JSON
+                            p.setDestino(llegada.getDestino());
+                            p.setMinutos(llegada.getMinutos());
+
+                            return p;
+                        });
+                    }
+
+                    // (Opcional) Fallback: Si la API no tiene llegadas, devolvemos la parada sin info de líneas
+                    TitsaParada pVacia = new TitsaParada();
+                    pVacia.setIdParada(idParada);
+                    pVacia.setMinutos(-1); // Para saber que no hay datos
+                    return java.util.stream.Stream.of(pVacia);
                 })
-                .distinct()
                 .toList();
     }
 
@@ -91,7 +108,7 @@ public class TitsaService {
 
             if (titsaResponse != null && titsaResponse.getParada() != null) {
                 TitsaParada parada = titsaResponse.getParada();
-                parada.setDescripcion(reverseMojibake(parada.getDescripcion()));
+                parada.setDescripcionParada(reverseMojibake(parada.getDescripcionParada()));
                 parada.setDescripcionLarga(reverseMojibake(parada.getDescripcionLarga()));
             }
 
@@ -101,7 +118,7 @@ public class TitsaService {
         }
     }
 
-    public TitsaLlegadaResponse getLlegadas(int idParada) {
+    public TitsaParadaResponse getLlegadas(int idParada) {
         try {
             String url = "https://www.titsa.com/ajax/xGetInfoParada.php?id_parada=" + idParada;
             ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
@@ -113,28 +130,31 @@ public class TitsaService {
             TitsaInfoParadaApiDTO apiResponse = objectMapper.readValue(rawJson, TitsaInfoParadaApiDTO.class);
 
             if (apiResponse == null || !apiResponse.isSuccess()) {
-                return new TitsaLlegadaResponse(false, null, List.of());
+                return new TitsaParadaResponse(false, null, List.of());
             }
 
             TitsaParada parada = apiResponse.getParada();
             if (parada != null) {
-                parada.setDescripcion(reverseMojibake(parada.getDescripcion()));
+                parada.setDescripcionParada(reverseMojibake(parada.getDescripcionParada()));
                 parada.setDescripcionLarga(reverseMojibake(parada.getDescripcionLarga()));
             }
 
-            List<TitsaLlegada> llegadas = List.of();
+            List<TitsaParada> llegadas = List.of();
 
             if (apiResponse.getLineas() != null) {
                 llegadas = apiResponse.getLineas().stream()
-                        .map(linea -> new TitsaLlegada(
-                                linea.getId(),
-                                reverseMojibake(linea.getDestino()),
-                                parseMinutos(linea.getTiempo())
-                        ))
+                        .map(linea -> {
+                            TitsaParada p = new TitsaParada();
+                            p.setLinea(linea.getId());
+                            p.setDescripcionLinea(reverseMojibake(linea.getDescripcion()));
+                            p.setDestino(reverseMojibake(linea.getDestino()));
+                            p.setMinutos(parseMinutos(linea.getTiempo()));
+                            return p;
+                        })
                         .toList();
             }
 
-            return new TitsaLlegadaResponse(true, parada, llegadas);
+            return new TitsaParadaResponse(true, parada, llegadas);
         } catch (Exception e) {
             throw new RuntimeException("Error fetching TITSA arrivals", e);
         }

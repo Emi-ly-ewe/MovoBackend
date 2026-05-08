@@ -3,7 +3,6 @@ package org.movo.movobackend.controller;
 import org.movo.movobackend.model.TitsaLinea;
 import org.movo.movobackend.model.TitsaParada;
 import org.movo.movobackend.model.response.TitsaItinerarioResponse;
-import org.movo.movobackend.model.response.TitsaLlegadaResponse;
 import org.movo.movobackend.model.TitsaNotificacion;
 import org.movo.movobackend.model.response.TitsaParadaResponse;
 import org.movo.movobackend.service.TitsaService;
@@ -25,7 +24,7 @@ public class TitsaController {
     @GetMapping("/notificacion/{id}")
     public TitsaNotificacion getNotificacion(@PathVariable int id) {return titsaService.getNotificacion(id);}
     @GetMapping("/llegadas/{id}")
-    public TitsaLlegadaResponse getLlegadas(@PathVariable int id) {
+    public TitsaParadaResponse getLlegadas(@PathVariable int id) {
         return titsaService.getLlegadas(id);
     }
     @GetMapping("/lineas")
