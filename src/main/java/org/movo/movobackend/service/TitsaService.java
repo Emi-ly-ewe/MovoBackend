@@ -58,40 +58,33 @@ public class TitsaService {
         }).toList();
     }
 
-    public List<TitsaParada> getParadasCercanas(double latUsuario, double lngUsuario, int radioMetros) {
+    public List<TitsaParadaResponse> getParadasCercanas(double latUsuario, double lngUsuario, int radioMetros) {
         List<ParadaEntity> todasLasParadas = paradaRepository.findAll();
-
         return todasLasParadas.stream()
-                .filter(p -> calcularDistancia(latUsuario, lngUsuario, p.getLat(), p.getLng()) <= radioMetros).map(ParadaEntity::getParadaId)
-                .distinct().flatMap(idParada -> {
-                    TitsaParadaResponse response = getLlegadas(Integer.parseInt(idParada));
+                .filter(p -> calcularDistancia(latUsuario, lngUsuario, p.getLat(), p.getLng()) <= radioMetros)
+                .collect(Collectors.toMap(ParadaEntity::getParadaId, p -> p, (p1, p2) -> p1))
+                .values().stream()
 
-                    if (response.isSuccess() && response.getLlegadas() != null && !response.getLlegadas().isEmpty()) {
+                .map(entidadParada -> {
+                    TitsaParadaResponse response = getLlegadas(Integer.parseInt(entidadParada.getParadaId()));
 
-                        return response.getLlegadas().stream().map(llegada -> {
-                            TitsaParada p = new TitsaParada();
-                            p.setIdParada(response.getParada().getIdParada());
-                            p.setDescripcionParada(response.getParada().getDescripcionParada());
-                            p.setDescripcionLarga(response.getParada().getDescripcionLarga());
-                            p.setLat(response.getParada().getLat());
-                            p.setLng(response.getParada().getLng());
-
-                            p.setLinea(llegada.getLinea());
-                            p.setDescripcionLinea(llegada.getDescripcionLinea()); // Lo nuevo que vimos en el JSON
-                            p.setDestino(llegada.getDestino());
-                            p.setMinutos(llegada.getMinutos());
-
-                            return p;
-                        });
+                    // --- VARIANTE COMPLETO O MEDIO (La API funcionó) ---
+                    if (response.isSuccess() && response.getParada() != null) {
+                        if (response.getLlegadas() == null) {
+                            response.setLlegadas(List.of()); // Aseguramos array vacío en vez de null
+                        }
+                        return response;
                     }
 
-                    // (Opcional) Fallback: Si la API no tiene llegadas, devolvemos la parada sin info de líneas
-                    TitsaParada pVacia = new TitsaParada();
-                    pVacia.setIdParada(idParada);
-                    pVacia.setMinutos(-1); // Para saber que no hay datos
-                    return java.util.stream.Stream.of(pVacia);
+                    // --- VARIANTE MEDIO / FALLBACK (La API falló o no tiene datos) ---
+                    TitsaParada paradaFallback = new TitsaParada();
+                    paradaFallback.setIdParada(entidadParada.getParadaId());
+                    paradaFallback.setLat(entidadParada.getLat());
+                    paradaFallback.setLng(entidadParada.getLng());
+
+                    return new TitsaParadaResponse(false, paradaFallback, List.of()); // Devuelve llegadas vacías []
                 })
-                .toList();
+                .toList(); // Si no hay paradas en el radio, esto suelta el Variante Vacío: []
     }
 
     // --- MÉTODOS DE PARADAS Y LLEGADAS ---

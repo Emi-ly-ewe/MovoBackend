@@ -36,7 +36,7 @@ public class TitsaController {
         return titsaService.getParadasPorLinea(linea, sentido);
     }
     @GetMapping("/cercanas")
-    public List<TitsaParada> getCercanas(@RequestParam double lat, @RequestParam double lng, @RequestParam(defaultValue = "500") int radio) {
+    public List<TitsaParadaResponse> getCercanas(@RequestParam double lat, @RequestParam double lng, @RequestParam int radio) {
         return titsaService.getParadasCercanas(lat, lng, radio);
     }
 }
