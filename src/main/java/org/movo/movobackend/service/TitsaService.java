@@ -22,10 +22,16 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.PreDestroy;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Service
@@ -65,6 +71,24 @@ public class TitsaService {
             .maximumSize(1)
             .build();
 
+    // Whole /cercanas answer, keyed by coordinates rounded to ~100 m + radius
+    private final Cache<String, List<TitsaParadaResponse>> cercanasCache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofSeconds(5))
+            .maximumSize(2_000)
+            .build();
+
+    // Bounded pool used to fetch the arrivals of several nearby stops in parallel
+    private final ExecutorService upstreamExecutor = Executors.newFixedThreadPool(16, r -> {
+        Thread t = new Thread(r, "titsa-upstream");
+        t.setDaemon(true);
+        return t;
+    });
+
+    @PreDestroy
+    void shutdownUpstreamExecutor() {
+        upstreamExecutor.shutdown();
+    }
+
     private int ultimoIdNotificacionConocido = 6899;
 
     public TitsaService(RestTemplate restTemplate, ObjectMapper objectMapper, LineaRepository lineaRepository,ParadaRepository paradaRepository) {
@@ -103,39 +127,56 @@ public class TitsaService {
     }
 
     public List<TitsaParadaResponse> getParadasCercanas(double latUsuario, double lngUsuario, int radioMetros) {
+        // Round to ~100 m so users in the same area share one cached answer
+        double lat = Math.round(latUsuario * 1000) / 1000.0;
+        double lng = Math.round(lngUsuario * 1000) / 1000.0;
+        String key = String.format(Locale.ROOT, "%.3f,%.3f,%d", lat, lng, radioMetros);
+        return cercanasCache.get(key, k -> calcularCercanas(lat, lng, radioMetros));
+    }
+
+    private List<TitsaParadaResponse> calcularCercanas(double lat, double lng, int radioMetros) {
         record Cerca(ParadaEntity parada, double metros) {}
 
         // Nearest first, capped, so one request can't fan out into dozens of upstream calls
         List<ParadaEntity> cercanas = paradasUnicas().stream()
                 .filter(p -> p.getLat() != null && p.getLng() != null)
-                .map(p -> new Cerca(p, calcularDistancia(latUsuario, lngUsuario, p.getLat(), p.getLng())))
+                .map(p -> new Cerca(p, calcularDistancia(lat, lng, p.getLat(), p.getLng())))
                 .filter(c -> c.metros() <= radioMetros)
                 .sorted(Comparator.comparingDouble(Cerca::metros))
                 .limit(MAX_PARADAS_CERCANAS)
                 .map(Cerca::parada)
                 .toList();
 
-        return cercanas.stream()
-                .map(entidadParada -> {
-                    TitsaParadaResponse response = getLlegadas(Integer.parseInt(entidadParada.getParadaId()));
+        // Ask for all arrivals at once: a cold request costs about one TITSA call, not one per stop
+        List<CompletableFuture<TitsaParadaResponse>> futures = cercanas.stream()
+                .map(p -> CompletableFuture.supplyAsync(() -> llegadasOFallback(p), upstreamExecutor))
+                .toList();
 
-                    // --- VARIANTE COMPLETO O MEDIO (La API funcionó) ---
-                    if (response.isSuccess() && response.getParada() != null) {
-                        if (response.getLlegadas() == null) {
-                            response.setLlegadas(List.of()); // Aseguramos array vacío en vez de null
-                        }
-                        return response;
-                    }
+        return futures.stream().map(CompletableFuture::join).toList(); // Si no hay paradas en el radio: []
+    }
 
-                    // --- VARIANTE MEDIO / FALLBACK (La API falló o no tiene datos) ---
-                    TitsaParada paradaFallback = new TitsaParada();
-                    paradaFallback.setIdParada(entidadParada.getParadaId());
-                    paradaFallback.setLat(entidadParada.getLat());
-                    paradaFallback.setLng(entidadParada.getLng());
+    private TitsaParadaResponse llegadasOFallback(ParadaEntity entidadParada) {
+        try {
+            TitsaParadaResponse response = getLlegadas(Integer.parseInt(entidadParada.getParadaId()));
 
-                    return new TitsaParadaResponse(false, paradaFallback, List.of()); // Devuelve llegadas vacías []
-                })
-                .toList(); // Si no hay paradas en el radio, esto suelta el Variante Vacío: []
+            // --- VARIANTE COMPLETO O MEDIO (La API funcionó) ---
+            if (response.isSuccess() && response.getParada() != null) {
+                if (response.getLlegadas() == null) {
+                    response.setLlegadas(List.of()); // Aseguramos array vacío en vez de null
+                }
+                return response;
+            }
+        } catch (Exception e) {
+            log.warn("Arrivals lookup failed for stop {}: {}", entidadParada.getParadaId(), e.toString());
+        }
+
+        // --- VARIANTE MEDIO / FALLBACK (La API falló o no tiene datos) ---
+        TitsaParada paradaFallback = new TitsaParada();
+        paradaFallback.setIdParada(entidadParada.getParadaId());
+        paradaFallback.setLat(entidadParada.getLat());
+        paradaFallback.setLng(entidadParada.getLng());
+
+        return new TitsaParadaResponse(false, paradaFallback, List.of()); // Devuelve llegadas vacías []
     }
 
     // --- MÉTODOS DE PARADAS Y LLEGADAS ---
